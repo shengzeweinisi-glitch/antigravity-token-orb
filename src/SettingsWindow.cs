@@ -19,9 +19,11 @@ namespace AntigravityTokenOrb
 
         // Controls
         private readonly List<Button> _themeButtons = new List<Button>();
-        private ComboBox _orbBottomCombo;
+        private TextBox _quota5hKBox;
+        private TextBox _quotaWeekKBox;
         private CheckBox _topMostCheck;
         private CheckBox _autoStartCheck;
+        private CheckBox _autoDockCheck;
         private Slider _opacitySlider;
         private TextBlock _opacityValText;
 
@@ -199,23 +201,28 @@ namespace AntigravityTokenOrb
             row1.Children.Add(_topMostCheck);
             genStack.Children.Add(row1);
 
-            var row2 = new Grid { Margin = new Thickness(0, 2, 0, 6) };
-            row2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
-            row2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            row2.Children.Add(MakeFieldLabel(theme, "悬浮球副指标"));
+            _autoDockCheck = CreateCheckBox(theme, "靠桌面右边缘自动缩成细条（鼠标靠近拉出）", _settings.AutoDockRightEdge);
+            _autoDockCheck.Margin = new Thickness(0, 0, 0, 6);
+            genStack.Children.Add(_autoDockCheck);
 
-            _orbBottomCombo = new ComboBox
-            {
-                Height = 26,
-                FontFamily = new FontFamily("Microsoft YaHei UI, Segoe UI"),
-                FontSize = 11.5
-            };
-            _orbBottomCombo.Items.Add(new ComboBoxItem { Content = "今日 Token 总量 (今 XXX)", Tag = "today" });
-            _orbBottomCombo.Items.Add(new ComboBoxItem { Content = "当前会话总量 (会 XXX)", Tag = "active" });
-            _orbBottomCombo.Items.Add(new ComboBoxItem { Content = "今日预估费用 (¥/$)", Tag = "cost" });
-            SelectComboByTag(_orbBottomCombo, _settings.OrbBottomMetric);
-            Grid.SetColumn(_orbBottomCombo, 1);
-            row2.Children.Add(_orbBottomCombo);
+            var row2 = new Grid { Margin = new Thickness(0, 2, 0, 6) };
+            row2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
+            row2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var q5Stack = new StackPanel();
+            q5Stack.Children.Add(MakeTinyLabel(theme, "5小时进度条参考上限 (K tok)"));
+            _quota5hKBox = CreateInputBox(theme, (_settings.Quota5hTokens / 1000).ToString(CultureInfo.InvariantCulture));
+            q5Stack.Children.Add(_quota5hKBox);
+            Grid.SetColumn(q5Stack, 0);
+            row2.Children.Add(q5Stack);
+
+            var qwStack = new StackPanel();
+            qwStack.Children.Add(MakeTinyLabel(theme, "周进度条参考上限 (K tok)"));
+            _quotaWeekKBox = CreateInputBox(theme, (_settings.QuotaWeekTokens / 1000).ToString(CultureInfo.InvariantCulture));
+            qwStack.Children.Add(_quotaWeekKBox);
+            Grid.SetColumn(qwStack, 2);
+            row2.Children.Add(qwStack);
             genStack.Children.Add(row2);
 
             var row3 = new Grid { Margin = new Thickness(0, 2, 0, 0) };
@@ -385,7 +392,7 @@ namespace AntigravityTokenOrb
         private void OnSaveClick(object sender, RoutedEventArgs e)
         {
             double pIn, pOut, pCache, fx;
-            long ctxK, rateK, todayK;
+            long ctxK, rateK, todayK, q5hK, qWeekK;
 
             if (!TryParseDouble(_priceInBox.Text, out pIn) || pIn < 0 ||
                 !TryParseDouble(_priceOutBox.Text, out pOut) || pOut < 0 ||
@@ -393,16 +400,20 @@ namespace AntigravityTokenOrb
                 !TryParseDouble(_fxRateBox.Text, out fx) || fx <= 0.1 ||
                 !TryParseLong(_ctxAlertKBox.Text, out ctxK) || ctxK < 0 ||
                 !TryParseLong(_rateAlertKBox.Text, out rateK) || rateK < 0 ||
-                !TryParseLong(_todayAlertKBox.Text, out todayK) || todayK < 0)
+                !TryParseLong(_todayAlertKBox.Text, out todayK) || todayK < 0 ||
+                !TryParseLong(_quota5hKBox.Text, out q5hK) || q5hK <= 0 ||
+                !TryParseLong(_quotaWeekKBox.Text, out qWeekK) || qWeekK <= 0)
             {
                 _statusMsg.Foreground = ThemeManager.GetTheme(_settings.ThemeId).Brush(ThemeManager.GetTheme(_settings.ThemeId).AccentDanger);
-                _statusMsg.Text = "请输入有效的非负数字";
+                _statusMsg.Text = "请输入有效的数字（参考配额需大于 0）";
                 return;
             }
 
             _settings.TopMost = _topMostCheck.IsChecked == true;
+            _settings.AutoDockRightEdge = _autoDockCheck.IsChecked == true;
             _settings.Opacity = _opacitySlider.Value;
-            _settings.OrbBottomMetric = GetSelectedComboTag(_orbBottomCombo, "today");
+            _settings.Quota5hTokens = q5hK * 1000L;
+            _settings.QuotaWeekTokens = qWeekK * 1000L;
 
             _settings.PriceInputPerMillionUsd = pIn;
             _settings.PriceOutputPerMillionUsd = pOut;

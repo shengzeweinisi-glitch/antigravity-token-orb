@@ -102,7 +102,9 @@ namespace AntigravityTokenOrb
         public long[] SparklineOutput20m { get; set; }
 
         // Scope aggregates
+        public ScopeAggregate Last5Hours { get; set; }
         public ScopeAggregate Today { get; set; }
+        public ScopeAggregate Last7Days { get; set; }
         public ScopeAggregate ActiveConversation { get; set; }
         public ScopeAggregate AllTime { get; set; }
 
@@ -124,7 +126,9 @@ namespace AntigravityTokenOrb
             SparklineEffective20m = new long[20];
             SparklineAll20m = new long[20];
             SparklineOutput20m = new long[20];
+            Last5Hours = new ScopeAggregate();
             Today = new ScopeAggregate();
+            Last7Days = new ScopeAggregate();
             ActiveConversation = new ScopeAggregate();
             AllTime = new ScopeAggregate();
             Conversations = new List<ConversationStats>();

@@ -229,6 +229,8 @@ namespace AntigravityTokenOrb
         {
             DateTime nowUtc = DateTime.UtcNow;
             DateTime todayStartUtc = DateTime.Today.ToUniversalTime();
+            DateTime win5hStart = nowUtc.AddHours(-5);
+            DateTime win7dStart = nowUtc.AddDays(-7);
             DateTime win1mStart = nowUtc.AddSeconds(-60);
             DateTime win5mStart = nowUtc.AddMinutes(-5);
             DateTime win20mStart = nowUtc.AddMinutes(-20);
@@ -292,6 +294,24 @@ namespace AntigravityTokenOrb
                     snap.AllTime.CacheReadTokens += step.CacheReadTokens;
                     snap.AllTime.StepCount++;
                     AddModelStats(allModels, step);
+
+                    // Last 5 hours rolling window
+                    if (step.CreatedAtUtc >= win5hStart && step.CreatedAtUtc <= nowUtc.AddSeconds(5))
+                    {
+                        snap.Last5Hours.InputTokens += step.InputTokens;
+                        snap.Last5Hours.OutputTokens += step.OutputTokens;
+                        snap.Last5Hours.CacheReadTokens += step.CacheReadTokens;
+                        snap.Last5Hours.StepCount++;
+                    }
+
+                    // Last 7 days (weekly) rolling window
+                    if (step.CreatedAtUtc >= win7dStart && step.CreatedAtUtc <= nowUtc.AddSeconds(5))
+                    {
+                        snap.Last7Days.InputTokens += step.InputTokens;
+                        snap.Last7Days.OutputTokens += step.OutputTokens;
+                        snap.Last7Days.CacheReadTokens += step.CacheReadTokens;
+                        snap.Last7Days.StepCount++;
+                    }
 
                     // Today aggregate
                     if (step.CreatedAtUtc >= todayStartUtc)

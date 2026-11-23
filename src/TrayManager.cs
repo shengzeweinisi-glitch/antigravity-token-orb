@@ -72,14 +72,15 @@ namespace AntigravityTokenOrb
             if (snap == null || settings == null) return;
 
             double rate = settings.IncludeCacheInPrimary ? snap.Rate1mAllPerMin : snap.Rate1mEffectivePerMin;
-            long today = settings.IncludeCacheInPrimary ? snap.Today.TotalAllTokens : snap.Today.EffectiveTokens;
+            long val5h = settings.IncludeCacheInPrimary ? snap.Last5Hours.TotalAllTokens : snap.Last5Hours.EffectiveTokens;
+            long valWeek = settings.IncludeCacheInPrimary ? snap.Last7Days.TotalAllTokens : snap.Last7Days.EffectiveTokens;
             double costUsd = TokenFormat.EstimateCostUsd(
                 snap.Today.InputTokens, snap.Today.OutputTokens, snap.Today.CacheReadTokens, settings);
 
-            string text = string.Format("AGY {0} | 今 {1} ({2})",
+            string text = string.Format("AGY {0} | 5h:{1} 周:{2}",
                 TokenFormat.FormatRatePerMin(rate),
-                TokenFormat.FormatCount(today),
-                TokenFormat.FormatCostCompact(costUsd, settings));
+                TokenFormat.FormatCount(val5h),
+                TokenFormat.FormatCount(valWeek));
             if (text.Length > 63) text = text.Substring(0, 63);
             _notifyIcon.Text = text;
 

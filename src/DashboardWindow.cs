@@ -42,7 +42,9 @@ namespace AntigravityTokenOrb
         private Canvas _sparkCanvas;
 
         // Scope tabs
+        private Button _tab5h;
         private Button _tabToday;
+        private Button _tabWeek;
         private Button _tabActive;
         private Button _tabAll;
 
@@ -356,18 +358,23 @@ namespace AntigravityTokenOrb
                 Margin = new Thickness(0, 0, 0, 8)
             };
             var tabGrid = new Grid();
-            tabGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            tabGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            tabGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int c = 0; c < 5; c++)
+                tabGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            _tabToday = CreateTabButton("今日消耗", "today");
+            _tab5h = CreateTabButton("5小时", "5h");
+            _tabToday = CreateTabButton("今日", "today");
+            _tabWeek = CreateTabButton("近7天(周)", "week");
             _tabActive = CreateTabButton("当前会话", "active");
-            _tabAll = CreateTabButton("全部历史", "all");
+            _tabAll = CreateTabButton("全部", "all");
 
-            Grid.SetColumn(_tabToday, 0);
-            Grid.SetColumn(_tabActive, 1);
-            Grid.SetColumn(_tabAll, 2);
+            Grid.SetColumn(_tab5h, 0);
+            Grid.SetColumn(_tabToday, 1);
+            Grid.SetColumn(_tabWeek, 2);
+            Grid.SetColumn(_tabActive, 3);
+            Grid.SetColumn(_tabAll, 4);
+            tabGrid.Children.Add(_tab5h);
             tabGrid.Children.Add(_tabToday);
+            tabGrid.Children.Add(_tabWeek);
             tabGrid.Children.Add(_tabActive);
             tabGrid.Children.Add(_tabAll);
             tabBar.Child = tabGrid;
@@ -752,7 +759,7 @@ namespace AntigravityTokenOrb
 
         private void UpdateTabStyles()
         {
-            var tabs = new[] { _tabToday, _tabActive, _tabAll };
+            var tabs = new[] { _tab5h, _tabToday, _tabWeek, _tabActive, _tabAll };
             foreach (var t in tabs)
             {
                 bool active = string.Equals((string)t.Tag, _settings.SelectedScope, StringComparison.OrdinalIgnoreCase);
@@ -859,7 +866,17 @@ namespace AntigravityTokenOrb
             // Selected scope
             ScopeAggregate agg;
             List<ModelBreakdown> models;
-            if (_settings.SelectedScope == "active")
+            if (_settings.SelectedScope == "5h")
+            {
+                agg = snap.Last5Hours;
+                models = snap.TodayModels;
+            }
+            else if (_settings.SelectedScope == "week")
+            {
+                agg = snap.Last7Days;
+                models = snap.AllTimeModels;
+            }
+            else if (_settings.SelectedScope == "active")
             {
                 agg = snap.ActiveConversation;
                 models = snap.TodayModels;
