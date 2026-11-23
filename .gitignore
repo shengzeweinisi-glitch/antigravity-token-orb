@@ -1,0 +1,14 @@
+# Build outputs
+*.exe
+*.pdb
+*.zip
+
+# Local user configs & OS files
+settings.json
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.vs/
+bin/
+obj/
