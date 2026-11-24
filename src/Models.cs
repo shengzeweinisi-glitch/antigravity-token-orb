@@ -121,6 +121,9 @@ namespace AntigravityTokenOrb
         public List<ModelBreakdown> TodayModels { get; set; }
         public List<ModelBreakdown> AllTimeModels { get; set; }
 
+        // Official backend quota snapshot from `agy -p /usage`
+        public OfficialQuotaSnapshot OfficialQuota { get; set; }
+
         public TokenSnapshot()
         {
             SparklineEffective20m = new long[20];

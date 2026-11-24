@@ -20,6 +20,10 @@ namespace AntigravityTokenOrb
         public string OrbBottomMetric { get; set; } // "today", "active", "cost"
         public string SelectedScope { get; set; }   // "today", "active", "all"
 
+        // Official Quota Display
+        public string QuotaGroupPreference { get; set; } // "auto", "gemini", "claude"
+        public bool ShowRemainingPercent { get; set; }   // false = show Used % (e.g. 7%), true = show Remaining % (e.g. 93%)
+
         // Theme
         public string ThemeId { get; set; } // "neon", "emerald", "sunset", "frost"
 
@@ -50,6 +54,8 @@ namespace AntigravityTokenOrb
             CompactPillMode = false;
             OrbBottomMetric = "today";
             SelectedScope = "today";
+            QuotaGroupPreference = "auto";
+            ShowRemainingPercent = false;
             ThemeId = "neon";
 
             // Default pricing ($/1M tokens)
@@ -96,6 +102,7 @@ namespace AntigravityTokenOrb
                         if (loaded.Opacity < 0.35 || loaded.Opacity > 1.0) loaded.Opacity = 0.95;
                         if (string.IsNullOrEmpty(loaded.OrbBottomMetric)) loaded.OrbBottomMetric = "today";
                         if (string.IsNullOrEmpty(loaded.SelectedScope)) loaded.SelectedScope = "today";
+                        if (string.IsNullOrEmpty(loaded.QuotaGroupPreference)) loaded.QuotaGroupPreference = "auto";
                         if (string.IsNullOrEmpty(loaded.ThemeId)) loaded.ThemeId = "neon";
                         if (string.IsNullOrEmpty(loaded.Currency)) loaded.Currency = "CNY";
                         if (loaded.UsdToCnyRate <= 0.1) loaded.UsdToCnyRate = 7.25;

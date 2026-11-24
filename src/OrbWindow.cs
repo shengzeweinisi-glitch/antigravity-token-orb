@@ -21,6 +21,7 @@ namespace AntigravityTokenOrb
 
         private readonly AppSettings _settings;
         private readonly TokenMonitorEngine _engine;
+        private readonly QuotaSyncEngine _quotaEngine;
         private readonly DashboardWindow _dashboard;
         private readonly Action _onExitRequested;
 
@@ -131,6 +132,7 @@ namespace AntigravityTokenOrb
         {
             _settings = settings;
             _engine = engine;
+            _quotaEngine = new QuotaSyncEngine();
             _onExitRequested = onExitRequested;
             _theme = ThemeManager.GetTheme(_settings.ThemeId);
 
@@ -152,7 +154,8 @@ namespace AntigravityTokenOrb
                     RefreshNow();
                 },
                 ToggleDisplayMode,
-                OpenSettingsWindow);
+                OpenSettingsWindow,
+                ForceRefreshQuota);
 
             _dashboard.PinnedConversationChanged += (convId) => RefreshNow();
 
@@ -181,7 +184,17 @@ namespace AntigravityTokenOrb
             _animTimer.Tick += OnAnimationTick;
             _animTimer.Start();
 
-            Loaded += (s, e) => RefreshNow();
+            Loaded += (s, e) =>
+            {
+                _quotaEngine.TriggerSyncIfDue(true, DateTime.MinValue, true);
+                RefreshNow();
+            };
+        }
+
+        public void ForceRefreshQuota()
+        {
+            _quotaEngine.TriggerSyncIfDue(true, DateTime.MinValue, true);
+            RefreshNow();
         }
 
         public void OpenSettingsWindow()
@@ -760,6 +773,25 @@ namespace AntigravityTokenOrb
             miToggleDash.Click += (s, e) => ToggleDashboard();
             menu.Items.Add(miToggleDash);
 
+            var miRefreshQuota = new MenuItem { Header = "↻ 立即刷新官方配额 (agy /usage)" };
+            miRefreshQuota.Click += (s, e) => ForceRefreshQuota();
+            menu.Items.Add(miRefreshQuota);
+
+            var miQuotaMode = new MenuItem
+            {
+                Header = _settings.ShowRemainingPercent
+                    ? "配额显示：剩余 % (点击切为已用 %)"
+                    : "配额显示：已用 % (点击切为剩余 %)"
+            };
+            miQuotaMode.Click += (s, e) =>
+            {
+                _settings.ShowRemainingPercent = !_settings.ShowRemainingPercent;
+                SettingsManager.Save(_settings);
+                BuildContextMenu();
+                RefreshNow();
+            };
+            menu.Items.Add(miQuotaMode);
+
             var miSettings = new MenuItem { Header = "⚙ 设置中心 (主题 / 配额 / 单价 / 预警 / 自启)..." };
             miSettings.Click += (s, e) => OpenSettingsWindow();
             menu.Items.Add(miSettings);
@@ -1235,6 +1267,9 @@ namespace AntigravityTokenOrb
         public void RefreshNow()
         {
             var snap = _engine.RefreshAndBuildSnapshot(_dashboard.PinnedConversationId);
+            _quotaEngine.TriggerSyncIfDue(snap.IsActive, snap.LastEventUtc, false);
+            snap.OfficialQuota = _quotaEngine.GetSnapshot();
+
             var alert = AlertStatus.Evaluate(snap, _settings);
             UpdateOrbVisuals(snap, alert);
             if (_dashboard.IsVisible)
@@ -1270,36 +1305,72 @@ namespace AntigravityTokenOrb
                 capWeek *= 8L;
             }
 
-            double ratio5h = Math.Min(1.0, (double)val5h / cap5h);
-            double ratioWeek = Math.Min(1.0, (double)valWeek / capWeek);
-
             string rateStr = TokenFormat.FormatRatePerMin(rate1m);
-            string str5h = TokenFormat.FormatCount(val5h);
-            string strWeek = TokenFormat.FormatCount(valWeek);
+            string str5hTok = TokenFormat.FormatCount(val5h);
+            string strWeekTok = TokenFormat.FormatCount(valWeek);
 
-            _orb5hValue.Text = str5h;
-            _orbWeekValue.Text = strWeek;
-            _pill5hValue.Text = str5h;
-            _pillWeekValue.Text = strWeek;
+            // Prefer official backend quota percentages from `agy -p /usage` whenever available!
+            var oq = snap.OfficialQuota;
+            bool hasOfficial = oq != null && oq.Available;
+            QuotaGroupSnapshot qGroup = hasOfficial ? oq.PickGroup(_settings.QuotaGroupPreference, snap.ActiveModel) : null;
+            bool useOfficial5h = qGroup != null && qGroup.FiveHour.HasData;
+            bool useOfficialWeek = qGroup != null && qGroup.Weekly.HasData;
+
+            double ratio5h;
+            string display5h;
+            if (useOfficial5h)
+            {
+                ratio5h = qGroup.FiveHour.UsedPercent / 100.0;
+                double shownPct = _settings.ShowRemainingPercent
+                    ? qGroup.FiveHour.RemainingPercent
+                    : qGroup.FiveHour.UsedPercent;
+                display5h = string.Format("{0:0}%", shownPct);
+            }
+            else
+            {
+                ratio5h = Math.Min(1.0, (double)val5h / cap5h);
+                display5h = str5hTok;
+            }
+
+            double ratioWeek;
+            string displayWeek;
+            if (useOfficialWeek)
+            {
+                ratioWeek = qGroup.Weekly.UsedPercent / 100.0;
+                double shownPct = _settings.ShowRemainingPercent
+                    ? qGroup.Weekly.RemainingPercent
+                    : qGroup.Weekly.UsedPercent;
+                displayWeek = string.Format("{0:0}%", shownPct);
+            }
+            else
+            {
+                ratioWeek = Math.Min(1.0, (double)valWeek / capWeek);
+                displayWeek = strWeekTok;
+            }
+
+            _orb5hValue.Text = display5h;
+            _orbWeekValue.Text = displayWeek;
+            _pill5hValue.Text = display5h;
+            _pillWeekValue.Text = displayWeek;
 
             var b5h = PickQuotaBarBrush(ratio5h, t.AccentPrimary);
             var bWeek = PickQuotaBarBrush(ratioWeek, t.AccentSecondary);
 
             _orb5hFill.Background = b5h;
-            _orb5hFill.Width = val5h > 0 ? Math.Max(4.0, 70.0 * ratio5h) : 0.0;
+            _orb5hFill.Width = ratio5h > 0.001 ? Math.Max(4.0, 70.0 * ratio5h) : 0.0;
 
             _orbWeekFill.Background = bWeek;
-            _orbWeekFill.Width = valWeek > 0 ? Math.Max(4.0, 56.0 * ratioWeek) : 0.0;
+            _orbWeekFill.Width = ratioWeek > 0.001 ? Math.Max(4.0, 56.0 * ratioWeek) : 0.0;
 
             _pill5hFill.Background = b5h;
-            _pill5hFill.Width = val5h > 0 ? Math.Max(4.0, 58.0 * ratio5h) : 0.0;
+            _pill5hFill.Width = ratio5h > 0.001 ? Math.Max(4.0, 58.0 * ratio5h) : 0.0;
 
             _pillWeekFill.Background = bWeek;
-            _pillWeekFill.Width = valWeek > 0 ? Math.Max(4.0, 58.0 * ratioWeek) : 0.0;
+            _pillWeekFill.Width = ratioWeek > 0.001 ? Math.Max(4.0, 58.0 * ratioWeek) : 0.0;
 
             double stripTrackH = _stripBarTrack.Height;
             _stripBarFill.Background = b5h;
-            _stripBarFill.Height = val5h > 0 ? Math.Max(4.0, stripTrackH * ratio5h) : 3.0;
+            _stripBarFill.Height = ratio5h > 0.001 ? Math.Max(4.0, stripTrackH * ratio5h) : 3.0;
 
             _pillSpeedText.Text = rateStr;
             _targetProgress = Math.Max(0.05, ratio5h);
@@ -1360,18 +1431,34 @@ namespace AntigravityTokenOrb
                 snap.Last7Days.InputTokens, snap.Last7Days.OutputTokens, snap.Last7Days.CacheReadTokens, _settings);
             string alertLine = _hasAlert ? ("\n" + alert.BannerMessage) : "";
 
+            string quotaLines;
+            if (useOfficial5h || useOfficialWeek)
+            {
+                quotaLines = string.Format(
+                    "官方配额 ({0}):\n" +
+                    "  5小时: 已用 {1:0}% (剩 {2:0}% · {3}) · {4} tok\n" +
+                    "  1周内: 已用 {5:0}% (剩 {6:0}% · {7}) · {8} tok",
+                    qGroup.GroupName,
+                    qGroup.FiveHour.UsedPercent, qGroup.FiveHour.RemainingPercent, qGroup.FiveHour.FormatResetShort(), str5hTok,
+                    qGroup.Weekly.UsedPercent, qGroup.Weekly.RemainingPercent, qGroup.Weekly.FormatResetShort(), strWeekTok);
+            }
+            else
+            {
+                quotaLines = string.Format(
+                    "近 5 小时: {0} (约 {1})\n近 7 天(周): {2} (约 {3})",
+                    str5hTok, TokenFormat.FormatCost(cost5hUsd, _settings),
+                    strWeekTok, TokenFormat.FormatCost(costWeekUsd, _settings));
+            }
+
             ToolTip = string.Format(
-                "Antigravity Token 监控 ({0})\n" +
-                "实时速率: {1} ({2})\n" +
-                "近 5 小时: {3} ({4:0}% · 约 {5})\n" +
-                "近 7 天(周): {6} ({7:0}% · 约 {8})\n" +
-                "今日新增: {9} (含缓存 {10}){11}\n" +
+                "Antigravity Token 监控\n" +
+                "实时速率: {0} ({1})\n" +
+                "{2}\n" +
+                "今日新增: {3} (含缓存 {4}){5}\n" +
                 "单击展开详情 · 拖动移位 · 靠右 Q 弹磁吸",
-                incCache ? "含缓存口径" : "新增口径",
                 rateStr,
                 TokenFormat.FormatRatePerSec(rate1m),
-                str5h, ratio5h * 100.0, TokenFormat.FormatCost(cost5hUsd, _settings),
-                strWeek, ratioWeek * 100.0, TokenFormat.FormatCost(costWeekUsd, _settings),
+                quotaLines,
                 TokenFormat.FormatCount(snap.Today.EffectiveTokens),
                 TokenFormat.FormatCount(snap.Today.TotalAllTokens),
                 alertLine);

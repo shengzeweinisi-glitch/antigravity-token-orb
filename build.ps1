@@ -17,6 +17,7 @@ $sources = @(
     (Join-Path $srcDir "JsonLineParser.cs"),
     (Join-Path $srcDir "ThemeManager.cs"),
     (Join-Path $srcDir "SettingsManager.cs"),
+    (Join-Path $srcDir "QuotaSyncEngine.cs"),
     (Join-Path $srcDir "TokenMonitorEngine.cs"),
     (Join-Path $srcDir "SettingsWindow.cs"),
     (Join-Path $srcDir "DashboardWindow.cs"),

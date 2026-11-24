@@ -16,6 +16,7 @@ namespace AntigravityTokenOrb
         private readonly Action _onSettingsChanged;
         private readonly Action _onToggleOrbStyle;
         private readonly Action _onOpenSettings;
+        private readonly Action _onRefreshQuota;
         private readonly string _brainDir;
 
         private TokenSnapshot _lastSnapshot;
@@ -32,6 +33,17 @@ namespace AntigravityTokenOrb
         private TextBlock _statusText;
         private Button _metricToggleBtn;
         private TextBlock _metricToggleText;
+
+        // Official Quota Card controls
+        private TextBlock _quotaCardTitle;
+        private TextBlock _quotaSyncMeta;
+        private TextBlock _quota5hText;
+        private TextBlock _quota5hReset;
+        private Border _quota5hBarFill;
+        private TextBlock _quotaWeekText;
+        private TextBlock _quotaWeekReset;
+        private Border _quotaWeekBarFill;
+        private TextBlock _quotaAltGroupText;
 
         // Speed controls
         private TextBlock _rate1mValue;
@@ -85,13 +97,15 @@ namespace AntigravityTokenOrb
             string brainDir,
             Action onSettingsChanged,
             Action onToggleOrbStyle,
-            Action onOpenSettings)
+            Action onOpenSettings,
+            Action onRefreshQuota)
         {
             _settings = settings;
             _brainDir = brainDir;
             _onSettingsChanged = onSettingsChanged;
             _onToggleOrbStyle = onToggleOrbStyle;
             _onOpenSettings = onOpenSettings;
+            _onRefreshQuota = onRefreshQuota;
 
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
@@ -273,6 +287,97 @@ namespace AntigravityTokenOrb
             _alertBanner.ToolTip = "点击打开设置中心调整预警阈值";
             _alertBanner.MouseLeftButtonDown += (s, e) => { if (_onOpenSettings != null) _onOpenSettings(); };
             root.Children.Add(_alertBanner);
+
+            // === SECTION 0: OFFICIAL QUOTA CARD (agy -p /usage) ===
+            var quotaCard = CreateCardBorder(new Thickness(12, 8, 12, 8), new Thickness(0, 0, 0, 9));
+            var quotaStack = new StackPanel();
+            quotaCard.Child = quotaStack;
+
+            var qHeader = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            qHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            qHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            _quotaCardTitle = CreateLabel("官方配额 (5小时 / 1周真实占比)", t.AccentPrimary, 10.5);
+            _quotaCardTitle.FontWeight = FontWeights.SemiBold;
+            qHeader.Children.Add(_quotaCardTitle);
+
+            var qHeaderRight = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            _quotaSyncMeta = CreateLabel("同步中...", t.TextMuted, 9.5);
+            _quotaSyncMeta.VerticalAlignment = VerticalAlignment.Center;
+            _quotaSyncMeta.Margin = new Thickness(0, 0, 8, 0);
+            var qRefreshBtn = CreateLinkButton("↻ 刷新", () =>
+            {
+                if (_onRefreshQuota != null) _onRefreshQuota();
+            });
+            qHeaderRight.Children.Add(_quotaSyncMeta);
+            qHeaderRight.Children.Add(qRefreshBtn);
+            Grid.SetColumn(qHeaderRight, 1);
+            qHeader.Children.Add(qHeaderRight);
+            quotaStack.Children.Add(qHeader);
+
+            // 5h Quota Row
+            var q5Top = new Grid();
+            q5Top.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            q5Top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            _quota5hText = CreateLabel("5小时用量: 同步中...", t.TextPrimary, 11);
+            _quota5hText.FontWeight = FontWeights.SemiBold;
+            _quota5hReset = CreateLabel("--", t.TextMuted, 9.5);
+            Grid.SetColumn(_quota5hReset, 1);
+            q5Top.Children.Add(_quota5hText);
+            q5Top.Children.Add(_quota5hReset);
+            quotaStack.Children.Add(q5Top);
+
+            var q5Track = new Border
+            {
+                Height = 5,
+                CornerRadius = new CornerRadius(2.5),
+                Background = t.Brush(t.TrackBg),
+                Margin = new Thickness(0, 3, 0, 6)
+            };
+            _quota5hBarFill = new Border
+            {
+                Height = 5,
+                Width = 0,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                CornerRadius = new CornerRadius(2.5),
+                Background = t.Brush(t.AccentPrimary)
+            };
+            q5Track.Child = _quota5hBarFill;
+            quotaStack.Children.Add(q5Track);
+
+            // Weekly Quota Row
+            var qwTop = new Grid();
+            qwTop.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            qwTop.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            _quotaWeekText = CreateLabel("1周用量: 同步中...", t.TextSecondary, 11);
+            _quotaWeekText.FontWeight = FontWeights.SemiBold;
+            _quotaWeekReset = CreateLabel("--", t.TextMuted, 9.5);
+            Grid.SetColumn(_quotaWeekReset, 1);
+            qwTop.Children.Add(_quotaWeekText);
+            qwTop.Children.Add(_quotaWeekReset);
+            quotaStack.Children.Add(qwTop);
+
+            var qwTrack = new Border
+            {
+                Height = 5,
+                CornerRadius = new CornerRadius(2.5),
+                Background = t.Brush(t.TrackBg),
+                Margin = new Thickness(0, 3, 0, 5)
+            };
+            _quotaWeekBarFill = new Border
+            {
+                Height = 5,
+                Width = 0,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                CornerRadius = new CornerRadius(2.5),
+                Background = t.Brush(t.AccentSecondary)
+            };
+            qwTrack.Child = _quotaWeekBarFill;
+            quotaStack.Children.Add(qwTrack);
+
+            _quotaAltGroupText = CreateLabel("", t.TextMuted, 9.5);
+            quotaStack.Children.Add(_quotaAltGroupText);
+
+            root.Children.Add(quotaCard);
 
             // === SECTION 1: SPEED + 20M SPARKLINE ===
             var speedCard = CreateCardBorder(new Thickness(12, 9, 12, 9), new Thickness(0, 0, 0, 9));
@@ -827,6 +932,60 @@ namespace AntigravityTokenOrb
             else
             {
                 _alertBanner.Visibility = Visibility.Collapsed;
+            }
+
+            // Official Quota Card update
+            var oq = snap.OfficialQuota;
+            if (oq != null && oq.Available)
+            {
+                var qg = oq.PickGroup(_settings.QuotaGroupPreference, snap.ActiveModel);
+                var alt = ReferenceEquals(qg, oq.Gemini) ? oq.ClaudeGpt : oq.Gemini;
+                _quotaCardTitle.Text = "官方配额 · " + qg.GroupName;
+                _quotaSyncMeta.Text = oq.IsRefreshing
+                    ? "同步中..."
+                    : ("同步 " + oq.LastSyncedUtc.ToLocalTime().ToString("HH:mm:ss"));
+
+                if (qg.FiveHour.HasData)
+                {
+                    double u5 = qg.FiveHour.UsedPercent;
+                    _quota5hText.Text = string.Format("5小时用量: 已用 {0:0}%  (剩余 {1:0}%)", u5, qg.FiveHour.RemainingPercent);
+                    _quota5hReset.Text = qg.FiveHour.FormatResetCountdown();
+                    _quota5hBarFill.Width = u5 > 0.1 ? Math.Max(4.0, 348.0 * (u5 / 100.0)) : 0.0;
+                    _quota5hBarFill.Background = u5 >= 90 ? t.Brush(t.AccentDanger)
+                        : (u5 >= 75 ? t.Brush(t.AccentWarn) : t.Brush(t.AccentPrimary));
+                }
+                if (qg.Weekly.HasData)
+                {
+                    double uw = qg.Weekly.UsedPercent;
+                    _quotaWeekText.Text = string.Format("1周用量: 已用 {0:0}%  (剩余 {1:0}%)", uw, qg.Weekly.RemainingPercent);
+                    _quotaWeekReset.Text = qg.Weekly.FormatResetCountdown();
+                    _quotaWeekBarFill.Width = uw > 0.1 ? Math.Max(4.0, 348.0 * (uw / 100.0)) : 0.0;
+                    _quotaWeekBarFill.Background = uw >= 90 ? t.Brush(t.AccentDanger)
+                        : (uw >= 75 ? t.Brush(t.AccentWarn) : t.Brush(t.AccentSecondary));
+                }
+                if (alt != null && alt.HasAny)
+                {
+                    _quotaAltGroupText.Text = string.Format("{0}: 5h 已用 {1:0}% (剩 {2:0}%) · 1周 已用 {3:0}% (剩 {4:0}%)",
+                        alt.GroupName,
+                        alt.FiveHour.UsedPercent, alt.FiveHour.RemainingPercent,
+                        alt.Weekly.UsedPercent, alt.Weekly.RemainingPercent);
+                }
+                else
+                {
+                    _quotaAltGroupText.Text = "";
+                }
+            }
+            else
+            {
+                _quotaCardTitle.Text = "官方配额 (agy /usage)";
+                _quotaSyncMeta.Text = (oq != null && oq.IsRefreshing) ? "同步中..." : (oq != null ? oq.StatusMessage : "等待同步");
+                _quota5hText.Text = "5小时用量: 正在获取官方配额...";
+                _quota5hReset.Text = "--";
+                _quota5hBarFill.Width = 0;
+                _quotaWeekText.Text = "1周用量: 正在获取官方配额...";
+                _quotaWeekReset.Text = "--";
+                _quotaWeekBarFill.Width = 0;
+                _quotaAltGroupText.Text = "若本机未安装 agy CLI，悬浮球自动回退为本地 Token 估算。";
             }
 
             // Live Status

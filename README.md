@@ -11,9 +11,11 @@
 
 ## 核心特性
 
-- **双外观形态（免点开直看 5h + 周消耗）**：
-  - **圆形悬浮球**：外圈动态光环反映 5 小时窗口占比与预警状态；球体内部直接呈现 **实时速率 + 5 小时消耗（含直观进度条）+ 近 7 天周消耗（含直观进度条）**，无需展开详情即可一眼掌握。
-  - **迷你胶囊**：横向胶囊同步展示 `速率 | 5h + 进度条 | 周 + 进度条`，适合贴边常驻。
+- **双外观形态（免点开直看官方真实 5h + 周配额百分比）**：
+  - **圆形悬浮球**：通过官方 `agy -p /usage` 命令后台异步同步**服务端真实 5 小时与 1 周配额百分比**（支持切换显示「已用 %」或「剩余 %」，无 `agy` CLI 时自动回退为本地 Token 估算）；外圈动态光环同步反映 5h 占比与预警状态。
+  - **迷你胶囊**：横向胶囊同步展示 `实时速率 | 5h % + 进度条 | 周 % + 进度条`，适合贴边常驻。
+- **官方配额监控卡片**：
+  - 详情面板置顶展示 **Gemini 模型组** 与 **Claude / GPT 模型组** 的 5 小时 / 1 周真实占比、精确重置倒计时与一键手动刷新，支持「自动跟随当前模型 / 固定分组」切换。
 - **4 套实时配色主题**：
   - `深空霓虹 (Cyber Neon)` · `翡翠矩阵 (Emerald Matrix)` · `落日琥珀 (Sunset Amber)` · `浅色磨砂 (Frost Light)`，一键即时切换。
 - **实时消耗速度与趋势**：
@@ -68,8 +70,8 @@ powershell -ExecutionPolicy Bypass -File .\build.ps1
 - 程序仅以只读共享模式（`FileShare.ReadWrite`）读取当前用户目录下的：
   - `%USERPROFILE%\.gemini\antigravity\brain\*\.system_generated\logs\transcript.jsonl`（仅提取 `step_index`、`created_at`、`model`、`input_tokens`、`output_tokens`、`cache_read_tokens` 顶层元数据字段，不读取对话正文）
   - `%USERPROFILE%\.gemini\antigravity\annotations\*.pbtxt`（仅提取会话标题 `title`）
-- 用户个性化配置仅保存在本地 `%LOCALAPPDATA%\AntigravityTokenOrb\settings.json`。
-- 程序不包含任何遥测或网络请求代码。
+- 官方配额百分比通过调用本机已登录的官方 CLI 命令 `agy -p /usage` 获取（不消耗 LLM Token，不接触账号凭据；若本机未安装 `agy` CLI 则自动纯离线运行）。
+- 用户个性化配置仅保存在本地 `%LOCALAPPDATA%\AntigravityTokenOrb\settings.json`，程序本身不包含任何第三方遥测或数据上报代码。
 
 ---
 
@@ -81,6 +83,7 @@ antigravity-token-orb/
 │   ├── Program.cs              # 程序入口、DPI 适配、单实例锁
 │   ├── Models.cs               # 数据结构、格式化、费用估算与预警评估
 │   ├── JsonLineParser.cs       # 轻量流式顶层 JSONL 解析与 .pbtxt 标题解码
+│   ├── QuotaSyncEngine.cs      # 官方 `agy -p /usage` 异步实时配额同步引擎
 │   ├── TokenMonitorEngine.cs   # 增量日志监听、滚动速率与 20 分钟趋势聚合
 │   ├── ThemeManager.cs         # 4 套明暗配色主题定义
 │   ├── SettingsManager.cs      # 配置持久化与 Windows 开机自启注册表管理

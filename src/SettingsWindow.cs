@@ -19,6 +19,8 @@ namespace AntigravityTokenOrb
 
         // Controls
         private readonly List<Button> _themeButtons = new List<Button>();
+        private ComboBox _quotaGroupCombo;
+        private ComboBox _quotaModeCombo;
         private TextBox _quota5hKBox;
         private TextBox _quotaWeekKBox;
         private CheckBox _topMostCheck;
@@ -204,6 +206,33 @@ namespace AntigravityTokenOrb
             _autoDockCheck = CreateCheckBox(theme, "靠桌面右边缘自动缩成细条（鼠标靠近拉出）", _settings.AutoDockRightEdge);
             _autoDockCheck.Margin = new Thickness(0, 0, 0, 6);
             genStack.Children.Add(_autoDockCheck);
+
+            var quotaModeRow = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            quotaModeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            quotaModeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
+            quotaModeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var qgStack = new StackPanel();
+            qgStack.Children.Add(MakeTinyLabel(theme, "官方配额模型分组 (agy /usage)"));
+            _quotaGroupCombo = new ComboBox { Height = 25, FontSize = 11 };
+            _quotaGroupCombo.Items.Add(new ComboBoxItem { Content = "自动跟随当前模型", Tag = "auto" });
+            _quotaGroupCombo.Items.Add(new ComboBoxItem { Content = "固定 Gemini 模型", Tag = "gemini" });
+            _quotaGroupCombo.Items.Add(new ComboBoxItem { Content = "固定 Claude / GPT", Tag = "claude" });
+            SelectComboByTag(_quotaGroupCombo, _settings.QuotaGroupPreference);
+            qgStack.Children.Add(_quotaGroupCombo);
+            Grid.SetColumn(qgStack, 0);
+            quotaModeRow.Children.Add(qgStack);
+
+            var qmStack = new StackPanel();
+            qmStack.Children.Add(MakeTinyLabel(theme, "悬浮球百分比显示方式"));
+            _quotaModeCombo = new ComboBox { Height = 25, FontSize = 11 };
+            _quotaModeCombo.Items.Add(new ComboBoxItem { Content = "已用百分比 (如 7%)", Tag = "used" });
+            _quotaModeCombo.Items.Add(new ComboBoxItem { Content = "剩余百分比 (如 93%)", Tag = "remaining" });
+            SelectComboByTag(_quotaModeCombo, _settings.ShowRemainingPercent ? "remaining" : "used");
+            qmStack.Children.Add(_quotaModeCombo);
+            Grid.SetColumn(qmStack, 2);
+            quotaModeRow.Children.Add(qmStack);
+            genStack.Children.Add(quotaModeRow);
 
             var row2 = new Grid { Margin = new Thickness(0, 2, 0, 6) };
             row2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -411,6 +440,8 @@ namespace AntigravityTokenOrb
 
             _settings.TopMost = _topMostCheck.IsChecked == true;
             _settings.AutoDockRightEdge = _autoDockCheck.IsChecked == true;
+            _settings.QuotaGroupPreference = GetSelectedComboTag(_quotaGroupCombo, "auto");
+            _settings.ShowRemainingPercent = string.Equals(GetSelectedComboTag(_quotaModeCombo, "used"), "remaining", StringComparison.OrdinalIgnoreCase);
             _settings.Opacity = _opacitySlider.Value;
             _settings.Quota5hTokens = q5hK * 1000L;
             _settings.QuotaWeekTokens = qWeekK * 1000L;

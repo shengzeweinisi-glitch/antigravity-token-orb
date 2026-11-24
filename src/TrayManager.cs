@@ -77,10 +77,23 @@ namespace AntigravityTokenOrb
             double costUsd = TokenFormat.EstimateCostUsd(
                 snap.Today.InputTokens, snap.Today.OutputTokens, snap.Today.CacheReadTokens, settings);
 
-            string text = string.Format("AGY {0} | 5h:{1} 周:{2}",
-                TokenFormat.FormatRatePerMin(rate),
-                TokenFormat.FormatCount(val5h),
-                TokenFormat.FormatCount(valWeek));
+            string text;
+            if (snap.OfficialQuota != null && snap.OfficialQuota.Available)
+            {
+                var qg = snap.OfficialQuota.PickGroup(settings.QuotaGroupPreference, snap.ActiveModel);
+                double p5 = settings.ShowRemainingPercent ? qg.FiveHour.RemainingPercent : qg.FiveHour.UsedPercent;
+                double pw = settings.ShowRemainingPercent ? qg.Weekly.RemainingPercent : qg.Weekly.UsedPercent;
+                string modeTag = settings.ShowRemainingPercent ? "剩" : "用";
+                text = string.Format("AGY {0} | 5h{1}:{2:0}% 周{1}:{3:0}%",
+                    TokenFormat.FormatRatePerMin(rate), modeTag, p5, pw);
+            }
+            else
+            {
+                text = string.Format("AGY {0} | 5h:{1} 周:{2}",
+                    TokenFormat.FormatRatePerMin(rate),
+                    TokenFormat.FormatCount(val5h),
+                    TokenFormat.FormatCount(valWeek));
+            }
             if (text.Length > 63) text = text.Substring(0, 63);
             _notifyIcon.Text = text;
 
